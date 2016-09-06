@@ -139,36 +139,42 @@ trial_list = trial_list(shuff,:);
 breaklist = [repmat({'equal'}, length(trial_list)/2, 1); repmat({'random'}, length(trial_list)/2, 1)];
 breaklist = breaklist(shuff,:);
 
+if wroclaw
+    correlation_list = [repmat({'corr'}, length(trial_list)/2, 1); repmat({'anti'}, length(trial_list)/2, 1)];
+else
+    correlation_list = repmat({'corr'}, length(trial_list), 1);
+end
+
 
 %%%%%Needs revision onwards
 
-if wroclaw
-    correlation_base = [repmat({'corr'}, len, 1); repmat({'anti'}, len, 1)];
-else
-    correlation_base = repmat({'corr'}, len*2, 1);
-end
-
-correlation_list = correlation_base;
-reps = 4;
-
-while reps > 0
-    pairs = [pairs;pairsbase];
-    breaklist = [breaklist;breaklistbase];
-    correlation_list = [correlation_list;correlation_base];
-    reps= reps-1;
-end
-
-shuff = randperm(length(pairs));
-trial_list = pairs(shuff,:);
-breaklist = breaklist(shuff);
-correlation_list = correlation_list(shuff);
-displayTime = 3;
-
-if strcmp(subj, 's999')
-    trial_list = [4; 4; 5; 5];
-    breaklist = {'equal'; 'random';'equal'; 'random'};
-    displayTime = 1;
-end
+% if wroclaw
+%     correlation_base = [repmat({'corr'}, len, 1); repmat({'anti'}, len, 1)];
+% else
+%     correlation_base = repmat({'corr'}, len*2, 1);
+% end
+% 
+% correlation_list = correlation_base;
+% reps = 4;
+% 
+% while reps > 0
+%     pairs = [pairs;pairsbase];
+%     breaklist = [breaklist;breaklistbase];
+%     correlation_list = [correlation_list;correlation_base];
+%     reps= reps-1;
+% end
+% 
+% shuff = randperm(length(pairs));
+% trial_list = pairs(shuff,:);
+% breaklist = breaklist(shuff);
+% correlation_list = correlation_list(shuff);
+% displayTime = 3;
+% 
+% if strcmp(subj, 's999')
+%     trial_list = [4; 4; 5; 5];
+%     breaklist = {'equal'; 'random';'equal'; 'random'};
+%     displayTime = 1;
+% end
 
 
 %%%%%%%Screen Prep
@@ -195,26 +201,41 @@ end
 % Make the image into a texture
 starTexture = Screen('MakeTexture', window, imagename);
 
-scale = screenYpixels / 10;%previously 15 and 10
-disp(screenYpixels)
-sca
-error('test')
+theImageLocation = 'heart.png';
+[imagename, ~, alpha] = imread(theImageLocation);
+imagename(:,:,4) = alpha(:,:);
+
+% Get the size of the image
+[s1, s2, ~] = size(imagename);
+
+% Here we check if the image is too big to fit on the screen and abort if
+% it is. See ImageRescaleDemo to see how to rescale an image.
+if s1 > screenYpixels || s2 > screenYpixels
+    disp('ERROR! Image is too big to fit on the screen');
+    sca;
+    return;
+end
+
+% Make the image into a texture
+heartTexture = Screen('MakeTexture', window, imagename);
+
+scale = screenYpixels / 10;%previously 15
 
 vbl = Screen('Flip', window);
 
 %%%%%%DATA FILES
 
 initprint = 0;
-if ~(exist('Data/2v3/Telic2v3data.csv', 'file') == 2)
+if ~(exist('Data/TelicZ/TelicZdata.csv', 'file') == 2)
     initprint = 1;
 end
-dataFile = fopen('Data/2v3/Telic2v3data.csv', 'a');
-subjFile = fopen(['Data/2v3/Telic2v3_' subj '.csv'],'a');
+dataFile = fopen('Data/TelicZ/TelicZdata.csv', 'a');
+subjFile = fopen(['Data/TelicZ/TelicZ_' subj '.csv'],'a');
 if initprint
-    fprintf(dataFile, 'subject,time,condition,break,loops,response\n');
+    fprintf(dataFile, ['subj,time,cond,break,list,star loops,heart loops,contrast,correlated?,total star time,total heart time,response\n']);
 end
-fprintf(subjFile, 'subject,time,condition,break,loops,response\n');
-lineFormat = '%s,%6.2f,%s,%s,%d,%s\n';
+fprintf(subjFile, 'subj,time,cond,break,list,star loops,heart loops,contrast,correlated?,total star time,total heart time,response\n');
+lineFormat = '%s,%6.2f,%s,%s,%s,%d,%d,%d,%s,%6.2f,%6.2f,%s\n';
 
 %%%%%Conditions and List Setup
 
@@ -248,21 +269,22 @@ for condition = blockList
         %fixation cross
         fixCross(xCenter, yCenter, black, window, crossTime)
         
-        %draw the thing
-        numberOfLoops = trial_list(x);
-        breakType = breaklist{x};
-        correlationType = correlation_list{x};
-        if strcmp(correlationType, 'corr')
-            loopTime = correlated_values(numberOfLoops)/numberOfLoops;
-        else
-            loopTime = anticorrelated_values(numberOfLoops)/numberOfLoops;
-        end
-        framesPerLoop = round(loopTime / ifi) + 1;
-        
-        if events
+        %first animation, with star
+        trial = trial_list{x};
+        trial = trial(randi([1,2]),:);
+        numberOfLoops = trial(1);
+        if events 
+            if strcmp(correlation_list{x}, 'corr')
+                startotaltime = correlated_values(numberOfLoops);
+            else
+                startotaltime = anticorrelated_values(numberOfLoops);
+            end
+            loopTime = startotaltime/numberOfLoops;
+            framesPerLoop = round(loopTime / ifi) + 1;
+
             animateEventLoops(numberOfLoops, framesPerLoop, ...
                 minSpace, scale, xCenter, yCenter, window, ...
-                pauseTime, breakType, breakTime, screenNumber, starTexture, ...
+                pauseTime, breakType, breakTime, screenNumber, imageTexture, ...
                 ifi, vbl, randomStart, splitLoops, sameShapes)
         else
             displayObjectLoops(numberOfLoops,...
@@ -271,9 +293,51 @@ for condition = blockList
                 randomStart, splitLoops, sameShapes)
         end
         
-        [response, rt] = getResponse(window, screenXpixels, screenYpixels, textsize, condition{1});
-        fprintf(dataFile,lineFormat,subj,rt*1000,condition{1}, breakType,numberOfLoops,response);
-        fprintf(subjFile,lineFormat,subj,rt*1000,condition{1}, breakType,numberOfLoops,response);
+        %fixation cross
+        fixCross(xCenter, yCenter, black, window, crossTime)
+        
+        %second animation, with heart
+        numberOfLoops = trial(2);
+        
+        if events 
+            if strcmp(correlation_list{x}, 'corr')
+                hearttotaltime = correlated_values(numberOfLoops);
+            else
+                hearttotaltime = anticorrelated_values(numberOfLoops);
+            end
+            loopTime = hearttotaltime/numberOfLoops;
+            framesPerLoop = round(loopTime / ifi) + 1;
+
+            animateEventLoops(numberOfLoops, framesPerLoop, ...
+                minSpace, scale, xCenter, yCenter, window, ...
+                pauseTime, breakType, breakTime, screenNumber, imageTexture, ...
+                ifi, vbl, randomStart, splitLoops, sameShapes)
+        else
+            displayObjectLoops(numberOfLoops,...
+                minSpace, scale, xCenter, yCenter, window, ...
+                pauseTime, breakType, screenNumber, displayTime,...
+                randomStart, splitLoops, sameShapes)
+        end
+%         hearttotaltime = anticorrelated_values(numberOfLoops);
+%         if strcmp(correlation_list{x}, 'corr')
+%             hearttotaltime = correlated_values(numberOfLoops);
+%         end
+%         loopTime = hearttotaltime/numberOfLoops;
+%         framesPerLoop = round(loopTime / ifi) + 1;
+% 
+%         animateEventLoops(numberOfLoops, framesPerLoop, ...
+%             minSpace, scale, xCenter, yCenter, window, ...
+%             pauseTime, breakType, breakTime, screenNumber, heartTexture, ...
+%             ifi, vbl)
+        
+        [response, time] = getResponse(window, breakType, textsize, screenYpixels);
+%         response = 'na';
+%         time = 0;
+%'subj,time,cond,break,list,star loops,heart loops,contrast,correlated?,total star time,total heart time,response\n'
+        fprintf(dataFile, lineFormat, subj, time*1000, cond, breakType, list, trial(1),...
+            trial(2), abs(trial(1) - trial(2)),correlation_list{x},startotaltime,hearttotaltime,response);
+        fprintf(subjFile, lineFormat, subj, time*1000, cond, breakType, list, trial(1),...
+            trial(2), abs(trial(1) - trial(2)),correlation_list{x},startotaltime,hearttotaltime,response);
     end
     if c<2
         breakScreen(window, textsize, textspace);
