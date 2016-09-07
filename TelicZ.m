@@ -62,6 +62,9 @@ if TelicZ
     %the object stims has a base of n ellipses, it seems only fair that the
     %temporal difference is derived from a base time of x ellipses
     temporalDiff = .150;
+else
+    spatialDiff = 0;
+    temporalDiff = 0;
 end
 
 randomStart = false;
