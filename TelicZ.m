@@ -56,17 +56,17 @@ if TelicZ
     %The spatial difference is the difference in the area of each
     %ellipse AFTER the scaling has been applied. (It's added into the
     %points calculation before scaling, with some mathy whatever.)
-    spatialDiff = 100;
+    spatialDiff = 150;
     %The temporal difference is the difference in time. This is added onto
     %the base correlated time of that number of loops. (Since the area of
     %the object stims has a base of n ellipses, it seems only fair that the
     %temporal difference is derived from a base time of x ellipses
-    temporalDiff = 100;
+    temporalDiff = .150;
 end
 
 randomStart = false;
 %Randomizes the starting point of the figure.
-splitLoops = false;
+splitLoops = true;
 %Splits the pieces apart, spaces, and rotates them
 sameShapes = true;
 %sameShapes only affects trials with 'equal' breaks. If false, it will add
@@ -88,8 +88,11 @@ crossTime = 1;
 pauseTime = .5;
 %Length of space between loops presentation
 
-textsize = 40;
+textsize = 35;
 textspace = 1.5;
+
+displayTime = 3;
+%Number of seconds to display object stimuli
 
 %Matlab's strings are stupid, so I have quotes and quotes with spaces in
 %variables here
@@ -109,7 +112,7 @@ anticorrelated_values = [2.25, 1.5, .75, 6.75, 6, 5.25, 4.5, 3.75, 3];
 % breaklistbase = [repmat({'equal'}, len, 1); repmat({'random'}, len, 1)];
 % breaklist = breaklistbase;
 if strcmp(list, 'test')
-    trial_list = {[4 5; 5 4;]; [9 7; 7 9]};
+    trial_list = {[4 9; 9 4;]; [5 8; 8 5]};
     trial_list = [trial_list;trial_list];
     correlation_list = {'corr';'corr';'anti';'anti'};
 elseif strcmp(list, 'blue')
@@ -144,38 +147,6 @@ if wroclaw
 else
     correlation_list = repmat({'corr'}, length(trial_list), 1);
 end
-
-
-%%%%%Needs revision onwards
-
-% if wroclaw
-%     correlation_base = [repmat({'corr'}, len, 1); repmat({'anti'}, len, 1)];
-% else
-%     correlation_base = repmat({'corr'}, len*2, 1);
-% end
-% 
-% correlation_list = correlation_base;
-% reps = 4;
-% 
-% while reps > 0
-%     pairs = [pairs;pairsbase];
-%     breaklist = [breaklist;breaklistbase];
-%     correlation_list = [correlation_list;correlation_base];
-%     reps= reps-1;
-% end
-% 
-% shuff = randperm(length(pairs));
-% trial_list = pairs(shuff,:);
-% breaklist = breaklist(shuff);
-% correlation_list = correlation_list(shuff);
-% displayTime = 3;
-% 
-% if strcmp(subj, 's999')
-%     trial_list = [4; 4; 5; 5];
-%     breaklist = {'equal'; 'random';'equal'; 'random'};
-%     displayTime = 1;
-% end
-
 
 %%%%%%%Screen Prep
 HideCursor;	% Hide the mouse cursor
@@ -219,7 +190,7 @@ end
 % Make the image into a texture
 heartTexture = Screen('MakeTexture', window, imagename);
 
-scale = screenYpixels / 10;%previously 15
+scale = screenYpixels / 13;%previously 15 and 10
 
 vbl = Screen('Flip', window);
 
@@ -232,10 +203,10 @@ end
 dataFile = fopen('Data/TelicZ/TelicZdata.csv', 'a');
 subjFile = fopen(['Data/TelicZ/TelicZ_' subj '.csv'],'a');
 if initprint
-    fprintf(dataFile, ['subj,time,cond,break,list,star loops,heart loops,contrast,correlated?,total star time,total heart time,response\n']);
+    fprintf(dataFile, ['subj,time,cond,break,list,star loops,heart loops,contrast,diff,correlated?,total star time,total heart time,response\n']);
 end
-fprintf(subjFile, 'subj,time,cond,break,list,star loops,heart loops,contrast,correlated?,total star time,total heart time,response\n');
-lineFormat = '%s,%6.2f,%s,%s,%s,%d,%d,%d,%s,%6.2f,%6.2f,%s\n';
+fprintf(subjFile, 'subj,time,cond,break,list,trial 1 loops,trial 2 loops,contrast,diff,correlated?,total trial 1 time,total trial 2 time,response\n');
+lineFormat = '%s,%6.2f,%s,%s,%s,%d,%d,%d,%d,%s,%6.2f,%6.2f,%s\n';
 
 %%%%%Conditions and List Setup
 
@@ -268,29 +239,32 @@ for condition = blockList
     for x = 1:length(trial_list)
         %fixation cross
         fixCross(xCenter, yCenter, black, window, crossTime)
-        
+        breakType = breaklist{x};
         %first animation, with star
         trial = trial_list{x};
         trial = trial(randi([1,2]),:);
+        contrast = abs(trial(1) - trial(2));
         numberOfLoops = trial(1);
         if events 
-            if strcmp(correlation_list{x}, 'corr')
-                startotaltime = correlated_values(numberOfLoops);
-            else
-                startotaltime = anticorrelated_values(numberOfLoops);
+            zdiff = 0;
+            trial1totaltime = correlated_values(numberOfLoops);
+            if strcmp(correlation_list{x}, 'anti')
+                trial1totaltime = anticorrelated_values(numberOfLoops);
             end
-            loopTime = startotaltime/numberOfLoops;
+            loopTime = (trial1totaltime+zdiff)/numberOfLoops;
             framesPerLoop = round(loopTime / ifi) + 1;
 
             animateEventLoops(numberOfLoops, framesPerLoop, ...
                 minSpace, scale, xCenter, yCenter, window, ...
-                pauseTime, breakType, breakTime, screenNumber, imageTexture, ...
+                pauseTime, breakType, breakTime, screenNumber, starTexture, ...
                 ifi, vbl, randomStart, splitLoops, sameShapes)
         else
+            zdiff = 0;
+            trial1totaltime = 3;
             displayObjectLoops(numberOfLoops,...
                 minSpace, scale, xCenter, yCenter, window, ...
                 pauseTime, breakType, screenNumber, displayTime,...
-                randomStart, splitLoops, sameShapes)
+                randomStart, splitLoops, sameShapes, zdiff)
         end
         
         %fixation cross
@@ -300,44 +274,35 @@ for condition = blockList
         numberOfLoops = trial(2);
         
         if events 
-            if strcmp(correlation_list{x}, 'corr')
-                hearttotaltime = correlated_values(numberOfLoops);
-            else
-                hearttotaltime = anticorrelated_values(numberOfLoops);
+            zdiff = temporalDiff * contrast;
+            trial2totaltime = correlated_values(numberOfLoops);
+            if strcmp(correlation_list{x}, 'anti')
+                trial2totaltime = anticorrelated_values(numberOfLoops);
             end
-            loopTime = hearttotaltime/numberOfLoops;
+            loopTime = (trial2totaltime+zdiff)/numberOfLoops;
             framesPerLoop = round(loopTime / ifi) + 1;
 
             animateEventLoops(numberOfLoops, framesPerLoop, ...
                 minSpace, scale, xCenter, yCenter, window, ...
-                pauseTime, breakType, breakTime, screenNumber, imageTexture, ...
+                pauseTime, breakType, breakTime, screenNumber, heartTexture, ...
                 ifi, vbl, randomStart, splitLoops, sameShapes)
         else
+            zdiff = spatialDiff * contrast;
+            trial2totaltime = 3;
             displayObjectLoops(numberOfLoops,...
                 minSpace, scale, xCenter, yCenter, window, ...
                 pauseTime, breakType, screenNumber, displayTime,...
-                randomStart, splitLoops, sameShapes)
+                randomStart, splitLoops, sameShapes, zdiff)
         end
-%         hearttotaltime = anticorrelated_values(numberOfLoops);
-%         if strcmp(correlation_list{x}, 'corr')
-%             hearttotaltime = correlated_values(numberOfLoops);
-%         end
-%         loopTime = hearttotaltime/numberOfLoops;
-%         framesPerLoop = round(loopTime / ifi) + 1;
-% 
-%         animateEventLoops(numberOfLoops, framesPerLoop, ...
-%             minSpace, scale, xCenter, yCenter, window, ...
-%             pauseTime, breakType, breakTime, screenNumber, heartTexture, ...
-%             ifi, vbl)
         
-        [response, time] = getResponse(window, breakType, textsize, screenYpixels);
+        [response, time] = getResponse(window, screenXpixels, screenYpixels, textsize, cond);
 %         response = 'na';
 %         time = 0;
 %'subj,time,cond,break,list,star loops,heart loops,contrast,correlated?,total star time,total heart time,response\n'
         fprintf(dataFile, lineFormat, subj, time*1000, cond, breakType, list, trial(1),...
-            trial(2), abs(trial(1) - trial(2)),correlation_list{x},startotaltime,hearttotaltime,response);
+            trial(2), contrast, zdiff,correlation_list{x},trial1totaltime,trial2totaltime,response);
         fprintf(subjFile, lineFormat, subj, time*1000, cond, breakType, list, trial(1),...
-            trial(2), abs(trial(1) - trial(2)),correlation_list{x},startotaltime,hearttotaltime,response);
+            trial(2), contrast, zdiff,correlation_list{x},trial1totaltime,trial2totaltime,response);
     end
     if c<2
         breakScreen(window, textsize, textspace);
@@ -372,14 +337,16 @@ function [] = animateEventLoops(numberOfLoops, framesPerLoop, ...
     white = WhiteIndex(screenNumber);
     black = BlackIndex(screenNumber);
     grey = white/2;
-    [xpoints, ypoints] = getPoints(numberOfLoops, framesPerLoop);
+    [xpoints, ypoints] = getPoints(numberOfLoops, framesPerLoop, 0, scale);
     totalpoints = numel(xpoints);
     if randomStart
         [xpoints, ypoints, start] = randomizeStartPoint(xpoints, ypoints);
+    else
+        start = 1;
     end
     [Breaks] = makeBreaks(breakType, sameShapes, totalpoints, numberOfLoops, minSpace);
     if splitLoops
-        [xpoints, ypoints] = rotatePoints(xpoints, ypoints, framesPerLoop, Breaks, start);
+        [xpoints, ypoints] = rotatePoints(xpoints, ypoints, framesPerLoop, Breaks, start, 0, scale);
     end
     xpoints = (xpoints .* scale) + xCenter;
     ypoints = (ypoints .* scale) + yCenter;
@@ -419,7 +386,7 @@ end
 function [] = displayObjectLoops(numberOfLoops,...
     minSpace, scale, xCenter, yCenter, window, ...
     pauseTime, breakType, screenNumber, displayTime,...
-    randomStart, splitLoops, sameShapes)
+    randomStart, splitLoops, sameShapes, zdiff)
 
     %I have a set number of frames for the display objects, because adding
     %more frames makes the drawings smoother and, unlike in events, has no
@@ -428,14 +395,16 @@ function [] = displayObjectLoops(numberOfLoops,...
     white = WhiteIndex(screenNumber);
     black = BlackIndex(screenNumber);
     grey = white/2;
-    [xpoints, ypoints] = getPoints(numberOfLoops, dispframes);
+    [xpoints, ypoints] = getPoints(numberOfLoops, dispframes, zdiff, scale);
     totalpoints = numel(xpoints);
     if randomStart
         [xpoints, ypoints, start] = randomizeStartPoint(xpoints, ypoints);
+    else
+        start = 1;
     end
     [Breaks] = makeBreaks(breakType, sameShapes, totalpoints, numberOfLoops, minSpace);
     if splitLoops
-        [xpoints, ypoints] = rotatePoints(xpoints, ypoints, dispframes, Breaks, start);
+        [xpoints, ypoints] = rotatePoints(xpoints, ypoints, dispframes, Breaks, start, zdiff, scale);
     end
     xpoints = (xpoints .* scale) + xCenter;
     ypoints = (ypoints .* scale) + yCenter;
@@ -460,26 +429,42 @@ function [] = instructions(window, screenXpixels, screenYpixels, textsize, texts
     Screen('TextSize',window,textsize);
     white = WhiteIndex(window);
     textcolor = white;
+    xedgeDist = floor(screenXpixels / 3);
+    numstep = floor(linspace(xedgeDist, screenXpixels - xedgeDist, 7));
     quote = '''';
     
-    intro = ['In this experiment, you will be asked to consider some images'...
-        ' and animations. Your task is to decide how you would prefer to describe'...
-        ' what is displayed in each image or animation. \n \n'...
-        'You will be able to indicate your preference using the '...
-        quote 'f' quote ' and ' quote, 'j'  quote ' keys.'];
+%     intro = ['In this experiment, you will be asked to consider some images'...
+%         ' and animations. Your task is to decide how you would prefer to describe'...
+%         ' what is displayed in each image or animation. \n \n'...
+%         'You will be able to indicate your preference using the '...
+%         quote 'f' quote ' and ' quote, 'j'  quote ' keys.'];
+    intro = strcat('In this experiment, you will be asked to consider pairs',...
+        ' of images or animations. Your task is to decide, for each pair, how similar',...
+        ' what is displayed in the two images or animations is. \n \n',...
+        'You will indicate your judgment on a scale from 1-7, where 1 ',...
+        ' is ', quote, 'not at all similar', quote, ' and 7 is ', quote, 'very ',...
+        ' similar', quote, ', using the number keys at the top of the keyboard. While ',...
+        ' you will likely see pairs of images that you judge to be at the ',...
+        ' endpoints of the scale, you should also see pairs that require ',...
+        ' use of the intermediary points. That is, please try to use the',...
+        ' range provided by the scale. \n \n',...
+        'You will be able to make your judgment only after each pair ',...
+        ' of images is displayed. The representation below will appear',...
+        ' at that time to remind you of the scale', quote, 's orientation. ');
 
-    DrawFormattedText(window, intro, 'center', screenYpixels/2 - screenYpixels/3, textcolor, 70, 0, 0, textspace);
-    Screen('TextSize',window,textsize + 4);
-    DrawFormattedText(window, ['Press ' quote 'f' quote ' if you prefer \n'...
-        'the sentence on the left.'],screenXpixels/2 - screenXpixels/3, 'center', textcolor, 70);
-    DrawFormattedText(window, ['Press ' quote 'j' quote ' if you prefer \n'...
-        'the sentence on the right.'],screenXpixels/2 + screenXpixels/6, 'center', textcolor, 70);
-    Screen('TextSize',window,textsize);
+    DrawFormattedText(window, intro, 'center', 20, textcolor, 70, 0, 0, textspace);
+
+    for x = 1:7
+        DrawFormattedText(window, int2str(x), numstep(x), 5*screenYpixels/8, textcolor, 70);
+    end
+    DrawFormattedText(window, '  not  \n at all \nsimilar', numstep(1) - (xedgeDist / 25), 5*screenYpixels/8 + 30, textcolor);
+    DrawFormattedText(window, 'totally \nsimilar', numstep(7) - (xedgeDist / 25), 5*screenYpixels/8 + 30, textcolor);
+    
     intro2 = ['Please indicate to the experimenter if you have any questions, '...
         'or are ready to begin the experiment. \n When the experimenter has '...
         'left the room, you may press spacebar to begin.'];
     
-    DrawFormattedText(window, intro2, 'center', 2*screenYpixels/3, textcolor, 70, 0, 0, textspace);
+    DrawFormattedText(window, intro2, 'center', 4*screenYpixels/5, textcolor, 70, 0, 0, textspace);
     Screen('Flip', window);
     RestrictKeysForKbCheck(KbName('space'));
     KbStrokeWait;
@@ -527,59 +512,47 @@ end
 
 
 function [response, time] = getResponse(window, screenXpixels, screenYpixels, textsize, cond)
+    black = BlackIndex(window);
     white = WhiteIndex(window);
     textcolor = white;
+    xedgeDist = floor(screenXpixels / 3);
+    numstep = floor(linspace(xedgeDist, screenXpixels - xedgeDist, 7));
     Screen('TextFont',window,'Arial');
     Screen('TextSize',window,textsize);
-    quote = '''';
-    if strcmp(cond, 'objects')
-        question = 'How would you prefer to describe that image?';
-        optf = 'There were some GORPS.';
-        optj = 'There was some GORP.';
+    if strcmp(cond, 'o')
+        intro = 'How similar were those two images?';
     else
-        question = 'How would you prefer to describe that animation?';
-        optf = 'The star did some GLEEBS.';
-        optj = 'The star did some GLEEBING.';
+        intro = 'How similar were those two animations?';
     end
 
-    DrawFormattedText(window, question, 'center', screenYpixels/3, textcolor, 70);
-    
-    Screen('TextSize',window,textsize + 4);
-    DrawFormattedText(window, optf, screenXpixels/2 - screenXpixels/3, 'center', textcolor, 70);
-    DrawFormattedText(window, optj, screenXpixels/2 + screenXpixels/9, 'center', textcolor, 70);
-    
-    Screen('TextSize',window,textsize);
-    DrawFormattedText(window, ['Press ' quote 'f' quote],...
-        screenXpixels/2 - screenXpixels/3 + 200, screenYpixels/2+30, textcolor, 70);
-    DrawFormattedText(window, ['Press ' quote 'j' quote],...
-        screenXpixels/2 + screenXpixels/9 + 200, screenYpixels/2+30, textcolor, 70);
-        
+    DrawFormattedText(window, intro, 'center', screenYpixels/3, textcolor, 70);
+    for x = 1:7
+        DrawFormattedText(window, int2str(x), numstep(x), 'center', textcolor, 70);
+    end
+    DrawFormattedText(window, '  not  \n at all \nsimilar', numstep(1) - (xedgeDist / 25), screenYpixels/2 + 30, textcolor);
+    DrawFormattedText(window, 'very \nsimilar', numstep(7) - (xedgeDist / 25), screenYpixels/2 + 30, textcolor);
     Screen('Flip',window);
 
     % Wait for the user to input something meaningful
-    RestrictKeysForKbCheck([KbName('f') KbName('j')]);
     inLoop=true;
-    yesno = [KbName('f') KbName('j')];
+    oneseven = [KbName('1!') KbName('2@') KbName('3#') KbName('4$')...
+        KbName('5%') KbName('6^') KbName('7&')];
+%     numkeys = [89 90 91 92 93 94 95];
     starttime = GetSecs;
     while inLoop
         %code = [];
         [keyIsDown, ~, keyCode]=KbCheck;
         if keyIsDown
             code = find(keyCode);
-            if any(code(1) == yesno)
+            if any(code(1) == oneseven)
                 endtime = GetSecs;
-                if code == KbName('f')
-                    response = 'f';
-                end
-                if code== KbName('j')
-                    response= 'j';
-                end
+                response = KbName(code);
+                response = response(1);
                 inLoop=false;
             end
         end
     end
     time = endtime - starttime;
-    RestrictKeysForKbCheck([]);
 end
 
 
@@ -605,12 +578,18 @@ end
 %%%%%POINTS AND BREAKS FUNCTIONS%%%%%
 
 
-function [xpoints, ypoints] = getPoints(numberOfLoops, numberOfFrames)
-
+function [xpoints, ypoints] = getPoints(numberOfLoops, numberOfFrames, zdiff, scale)
+    if zdiff
+        tempArea = 2*pi*scale + zdiff;
+        scaledArea = tempArea / scale;
+        minorAxis = sqrt(scaledArea/(2*pi));
+    else
+        minorAxis = 1;
+    end
+    majorAxis = minorAxis*2;
     xpoints = [];
     ypoints = [];
-    majorAxis = 2;
-    minorAxis = 1;
+    
     centerX = 0;
     centerY = 0;
     theta = linspace(0,2*pi,numberOfFrames);
@@ -699,10 +678,10 @@ function [Breaks] = makeBreaks(breakType, sameShapes, totalpoints, loops, minSpa
     end
 end
 
-function [final_xpoints, final_ypoints] = rotatePoints(xpoints, ypoints, numberOfFrames, Breaks, start)
+function [final_xpoints, final_ypoints] = rotatePoints(xpoints, ypoints, numberOfFrames, Breaks, start, zdiff, scale)
     %This is set up because the randomized start point and/or the
     %additional break can mess with the directionality.
-    [init_xpoints, init_ypoints] = getPoints(numel(Breaks), numberOfFrames);
+    [init_xpoints, init_ypoints] = getPoints(numel(Breaks), numberOfFrames, 0, scale);
     nx = xpoints;
     ny = ypoints;
     halfLoop = floor(numberOfFrames/2);
@@ -774,8 +753,8 @@ function [final_xpoints, final_ypoints] = rotatePoints(xpoints, ypoints, numberO
                 petalnum = 0;
             end
         end
-        final_xpoints(m) = copy_nx(m) + (init_xpoints(halfLoop + (numberOfFrames * petalnum)) *1.3);
-        final_ypoints(m) = copy_ny(m) + (init_ypoints(halfLoop + (numberOfFrames * petalnum)) *1.3);
+        final_xpoints(m) = copy_nx(m) + (init_xpoints(halfLoop + (numberOfFrames * petalnum)) *2);
+        final_ypoints(m) = copy_ny(m) + (init_ypoints(halfLoop + (numberOfFrames * petalnum)) *2);
     end
 
 end
