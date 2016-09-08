@@ -206,10 +206,10 @@ end
 dataFile = fopen('Data/TelicZ/TelicZdata.csv', 'a');
 subjFile = fopen(['Data/TelicZ/TelicZ_' subj '.csv'],'a');
 if initprint
-    fprintf(dataFile, ['subj,time,cond,break,list,star loops,heart loops,contrast,diff,correlated?,total star time,total heart time,response\n']);
+    fprintf(dataFile, ['subj,time,cond,break,list,stim 1 loops,stim 2 loops,contrast,diff (pixels or ms),correlated?,total stim 1 time,total trial 2 time,response\n']);
 end
-fprintf(subjFile, 'subj,time,cond,break,list,trial 1 loops,trial 2 loops,contrast,diff,correlated?,total trial 1 time,total trial 2 time,response\n');
-lineFormat = '%s,%6.2f,%s,%s,%s,%d,%d,%d,%d,%s,%6.2f,%6.2f,%s\n';
+fprintf(subjFile, 'subj,time,cond,break,list,stim 1 loops,stim 2 loops,contrast,diff (pixels or ms),correlated?,total stim 1 time,total trial 2 time,response\n');
+lineFormat = '%s,%6.2f,%s,%s,%s,%d,%d,%d,%6.2f,%s,%6.2f,%6.2f,%s\n';
 
 %%%%%Conditions and List Setup
 
@@ -243,7 +243,7 @@ for condition = blockList
         %fixation cross
         fixCross(xCenter, yCenter, black, window, crossTime)
         breakType = breaklist{x};
-        %first animation, with star
+        %first stimulus
         trial = trial_list{x};
         trial = trial(randi([1,2]),:);
         contrast = abs(trial(1) - trial(2));
@@ -259,7 +259,7 @@ for condition = blockList
 
             animateEventLoops(numberOfLoops, framesPerLoop, ...
                 minSpace, scale, xCenter, yCenter, window, ...
-                pauseTime, breakType, breakTime, screenNumber, starTexture, ...
+                pauseTime, breakType, breakTime, screenNumber, heartTexture, ...
                 ifi, vbl, randomStart, splitLoops, sameShapes)
         else
             zdiff = 0;
@@ -273,7 +273,7 @@ for condition = blockList
         %fixation cross
         fixCross(xCenter, yCenter, black, window, crossTime)
         
-        %second animation, with heart
+        %second stimulus
         numberOfLoops = trial(2);
         
         if events 
@@ -289,6 +289,9 @@ for condition = blockList
                 minSpace, scale, xCenter, yCenter, window, ...
                 pauseTime, breakType, breakTime, screenNumber, heartTexture, ...
                 ifi, vbl, randomStart, splitLoops, sameShapes)
+            %turn difference in seconds into difference in milliseconds,
+            %for data writing purposes
+            zdiff = zdiff*1000;
         else
             zdiff = spatialDiff * contrast;
             trial2totaltime = 3;
@@ -302,9 +305,9 @@ for condition = blockList
 %         response = 'na';
 %         time = 0;
 %'subj,time,cond,break,list,star loops,heart loops,contrast,correlated?,total star time,total heart time,response\n'
-        fprintf(dataFile, lineFormat, subj, time*1000, cond, breakType, list, trial(1),...
+        fprintf(dataFile, lineFormat, subj, time*1000, condition{1}, breakType, list, trial(1),...
             trial(2), contrast, zdiff,correlation_list{x},trial1totaltime,trial2totaltime,response);
-        fprintf(subjFile, lineFormat, subj, time*1000, cond, breakType, list, trial(1),...
+        fprintf(subjFile, lineFormat, subj, time*1000, condition{1}, breakType, list, trial(1),...
             trial(2), contrast, zdiff,correlation_list{x},trial1totaltime,trial2totaltime,response);
     end
     if c<2
