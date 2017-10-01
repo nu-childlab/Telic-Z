@@ -151,12 +151,12 @@ vbl = Screen('Flip', window);
 %%%%%%DATA FILES
 
 initprint = 0;
-if ~(exist('Data/Z/TelicZData.csv', 'file') == 2)
+if ~(exist('TelicZData.csv', 'file') == 2)
     initprint = 1;
 end
 %%%%NOTE TO SELF: Change saving first
-dataFile = fopen('Data/Z/TelicZdata.csv', 'a');
-subjFile = fopen(['Data/Z/' subj '.csv'],'a');
+dataFile = fopen('TelicZdata.csv', 'a');
+subjFile = fopen([subj '.csv'],'a');
 if initprint
     fprintf(dataFile, 'subj,trial,time,cond,stim,break,list,loops 1,loops 2,contrast,correlated?,total time 1,total time 2,size change 1,size change 2,contrast-continuous,response\n');
 end
@@ -470,18 +470,18 @@ function [] = displayObjectLoops(numberOfLoops, framesPerLoop, ...
     savepoint = 1;
     for p = 1:totalpoints - 2
         if ~any(p == Breaks) && ~any(p+1 == Breaks)
-            Screen('DrawLine', window, lineColor, xpoints(p), ypoints(p), ...
+            Screen('DrawLine', window, black, xpoints(p), ypoints(p), ...
                 xpoints(p+1), ypoints(p+1), 5);
         else
             if strcmp(breakType, 'equal') && p>1
-                Screen('DrawLine', window, lineColor, xpoints(p), ypoints(p), ...
+                Screen('DrawLine', window, black, xpoints(p), ypoints(p), ...
                     xpoints(savepoint), ypoints(savepoint), 5);
                 savepoint = p+1;
             end
         end
     end
     if strcmp(breakType, 'equal') && p>1
-        Screen('DrawLine', window, lineColor, xpoints(totalpoints-1), ypoints(totalpoints-1), ...
+        Screen('DrawLine', window, black, xpoints(totalpoints-1), ypoints(totalpoints-1), ...
                     xpoints(savepoint), ypoints(savepoint), 5);
     end
     Screen('Flip', window);
