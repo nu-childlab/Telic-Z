@@ -56,7 +56,7 @@ minSpace = 10;
 breakTime = .25;
 %The number of seconds for each pause
 
-displayTime = 1.5;
+displayTime = 3;
 %number of seconds for which to display images
 
 crossTime = 1;
