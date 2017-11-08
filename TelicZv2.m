@@ -658,8 +658,14 @@ function [response, time] = getResponse(window, screenXpixels, screenYpixels, te
             if any(code(1) == oneseven)
                 endtime = GetSecs;
                 response = KbName(code);
-                response = response(1);
-                inLoop=false;
+                % If only one key was pressed (valid response), the result
+                % is a single char(acter), not a cell in a matrix
+                % calculate response key and exit the loop waiting for
+                % response.
+                if ischar(response)
+                    response = response(1);
+                    inLoop=false;
+                end
             end
         end
     end
